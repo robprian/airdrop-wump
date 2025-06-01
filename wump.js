@@ -142,34 +142,56 @@ _______  ____\_ |__ _____________|__|____    ____
     }
 
     async parallelProxyCheck(proxies, needed, concurrency = 20) {
-        let results = [];
+        // Enhanced: stop all checks as soon as enough proxies found
+        const results = [];
         let idx = 0;
-        let active = 0;
+        let controllers = [];
+        let start = Date.now();
+        concurrency = needed <= 10 ? 10 : concurrency;
         let done = false;
         return new Promise((resolve) => {
             const next = async () => {
                 if (results.length >= needed || done) return;
                 if (idx >= proxies.length) {
-                    if (active === 0) resolve(results);
+                    if (controllers.filter(c => c).length === 0) resolve(results);
                     return;
                 }
                 const proxy = proxies[idx++];
-                active++;
-                this.testProxy(proxy).then(ok => {
-                    if (ok) results.push(proxy);
-                }).finally(() => {
-                    active--;
-                    if (results.length >= needed) {
-                        done = true;
-                        resolve(results);
-                    } else {
-                        next();
+                const controller = new AbortController();
+                controllers.push(controller);
+                this.testProxy(proxy, controller.signal).then(ok => {
+                    if (ok && results.length < needed) {
+                        results.push(proxy);
+                        if (results.length >= needed && !done) {
+                            done = true;
+                            // Abort all other checks
+                            controllers.forEach(c => c && c.abort && c.abort());
+                            this.log(`\x1b[32m\x1b[1mFound ${results.length} working proxies in ${((Date.now()-start)/1000).toFixed(2)}s\x1b[0m`);
+                            resolve(results);
+                        }
                     }
+                }).catch(()=>{}).finally(() => {
+                    if (!done) next();
                 });
-                if (active < concurrency && idx < proxies.length) next();
             };
             for (let i = 0; i < concurrency && i < proxies.length; i++) next();
         });
+    }
+
+    async testProxy(proxy, abortSignal) {
+        try {
+            const agent = this.getProxyAgent(proxy);
+            const response = await axios.get('https://wump.xyz', {
+                httpsAgent: agent,
+                httpAgent: agent,
+                timeout: 10000,
+                headers: { 'User-Agent': this.getRandomUserAgent() },
+                signal: abortSignal
+            });
+            return response.status === 200;
+        } catch (error) {
+            return false;
+        }
     }
 
     async getWorkingProxy(account) {
@@ -200,21 +222,6 @@ _______  ____\_ |__ _____________|__|____    ____
             }
         }
         return null;
-    }
-
-    async testProxy(proxy) {
-        try {
-            const agent = this.getProxyAgent(proxy);
-            const response = await axios.get('https://wump.xyz', {
-                httpsAgent: agent,
-                httpAgent: agent,
-                timeout: 10000,
-                headers: { 'User-Agent': this.getRandomUserAgent() }
-            });
-            return response.status === 200;
-        } catch (error) {
-            return false;
-        }
     }
 
     markProxyDead(proxy) {
