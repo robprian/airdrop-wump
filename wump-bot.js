@@ -89,8 +89,9 @@ _______  ____\_ |__ _____________|__|____    ____
             this.log('\x1b[33m\x1b[1mRefreshing proxy list...\x1b[0m');
             
             const proxyUrls = [
-                'https://raw.githubusercontent.com/dpangestuw/Free-Proxy/refs/heads/main/All_proxies.txt',
                 'https://raw.githubusercontent.com/monosans/proxy-list/refs/heads/main/proxies/all.txt'
+                //'https://raw.githubusercontent.com/dpangestuw/Free-Proxy/refs/heads/main/All_proxies.txt'
+                
             ];
 
             let allProxies = [];
