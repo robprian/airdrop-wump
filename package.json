@@ -2,7 +2,7 @@
   "name": "wump-auto-claim-bot",
   "version": "1.0.0",
   "description": "WUMP Auto Claim Bot with Auto Proxy Management",
-  "main": "wump-bot.js",
+  "main": "wump.js",
   "scripts": {
     "start": "node wump.js",
     "dev": "nodemon wump.js"
