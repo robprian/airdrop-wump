@@ -569,7 +569,8 @@ _______  ____\_ |__ _____________|__|____    ____
 
                 this.log('\x1b[36m\x1b[1m' + '='.repeat(56) + '\x1b[0m');
                 
-                const _msg = `<b>WUMP Cycle Complete</b>\n\n<b>Total Accounts:</b> <code>${tokens.length}</code>\n<b>Total Balance:</b> <code>${totalBalance}</code> WUMP\n\n${accountSummaries.join('\n')}`;
+                const lastUpdate = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const _msg = `<b>WUMP Cycle Complete</b>\n\n<b>Total Accounts:</b> <code>${tokens.length}</code>\n<b>Total Balance:</b> <code>${totalBalance}</code> WUMP\n\n${accountSummaries.join('\n')}\n\n<b>Last Update:</b> <code>${lastUpdate} WIB</code>`;
                 await _0x3c4d(_msg);
                 
                 // Wait 12 hours
