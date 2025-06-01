@@ -4,8 +4,8 @@
   "description": "WUMP Auto Claim Bot with Auto Proxy Management",
   "main": "wump-bot.js",
   "scripts": {
-    "start": "node wump-bot.js",
-    "dev": "nodemon wump-bot.js"
+    "start": "node wump.js",
+    "dev": "nodemon wump.js"
   },
   "keywords": [
     "wump",
