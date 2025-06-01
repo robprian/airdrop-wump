@@ -1,0 +1,30 @@
+{
+  "name": "wump-auto-claim-bot",
+  "version": "1.0.0",
+  "description": "WUMP Auto Claim Bot with Auto Proxy Management",
+  "main": "wump-bot.js",
+  "scripts": {
+    "start": "node wump-bot.js",
+    "dev": "nodemon wump-bot.js"
+  },
+  "keywords": [
+    "wump",
+    "bot",
+    "auto-claim",
+    "proxy",
+    "nodejs"
+  ],
+  "author": "robprian",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "https-proxy-agent": "^7.0.2",
+    "socks-proxy-agent": "^8.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
