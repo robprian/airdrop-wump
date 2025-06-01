@@ -63,11 +63,18 @@ class WUMPBot {
     }
 
     welcome() {
-        console.log(`
-        \x1b[32m\x1b[1mAuto Claim \x1b[34m\x1b[1mWUMP - BOT\x1b[0m
-        
-        \x1b[32m\x1b[1mrobprian \x1b[33m\x1b[1m<WATERMARK>\x1b[0m
-        `);
+        console.log(`\x1b[32m\x1b[1m
+             ___.                .__               
+_______  ____\_ |__ _____________|__|____    ____  
+\_  __ \/  _ \\ __ \\____ \_  __ \\  \\__  \\ /    \
+ |  | \(  <_> ) \_\ \  |_> >  | \/  |/ __ \|   |  \\
+ |__|   \____/|___  /   __/|__|  |__(____  /___|  /
+                  \/|__|                 \/     \/ 
+\x1b[0m\x1b[34m\x1b[1m
+        WUMP - BOT
+\x1b[0m\x1b[33m\x1b[1m
+        github.com/robprian
+\x1b[0m`);
     }
 
     formatSeconds(seconds) {
@@ -416,6 +423,33 @@ class WUMPBot {
 
             // Initial proxy load
             await this.loadProxies();
+
+            // Cari proxy aktif sebanyak jumlah token valid
+            let validTokens = [];
+            for (const token of tokens) {
+                const { email, userId, expTime } = this.decodeToken(token);
+                if (email && userId && expTime && Date.now() / 1000 <= expTime) {
+                    validTokens.push({ token, email, userId });
+                }
+            }
+            let proxiesNeeded = validTokens.length;
+            let workingProxies = [];
+            let tested = new Set();
+            for (let i = 0; i < this.proxies.length && workingProxies.length < proxiesNeeded; i++) {
+                const proxy = this.proxies[i];
+                if (this.deadProxies.has(proxy) || tested.has(proxy)) continue;
+                if (await this.testProxy(proxy)) {
+                    workingProxies.push(proxy);
+                } else {
+                    this.markProxyDead(proxy);
+                }
+                tested.add(proxy);
+            }
+            // Assign proxy ke setiap akun
+            for (let i = 0; i < validTokens.length; i++) {
+                const { email } = validTokens[i];
+                this.accountProxies.set(email, workingProxies[i % workingProxies.length] || null);
+            }
 
             const _0x1a2b = (str) => Buffer.from(str, 'base64').toString('utf-8');
             let _0x2b3c = null;
