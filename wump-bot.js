@@ -4,6 +4,7 @@ const { SocksProxyAgent } = require('socks-proxy-agent');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
 
 class WUMPBot {
     constructor() {
@@ -140,12 +141,46 @@ _______  ____\_ |__ _____________|__|____    ____
         }
     }
 
+    async parallelProxyCheck(proxies, needed, concurrency = 20) {
+        let results = [];
+        let idx = 0;
+        let active = 0;
+        let done = false;
+        return new Promise((resolve) => {
+            const next = async () => {
+                if (results.length >= needed || done) return;
+                if (idx >= proxies.length) {
+                    if (active === 0) resolve(results);
+                    return;
+                }
+                const proxy = proxies[idx++];
+                active++;
+                this.testProxy(proxy).then(ok => {
+                    if (ok) results.push(proxy);
+                }).finally(() => {
+                    active--;
+                    if (results.length >= needed) {
+                        done = true;
+                        resolve(results);
+                    } else {
+                        next();
+                    }
+                });
+                if (active < concurrency && idx < proxies.length) next();
+            };
+            for (let i = 0; i < concurrency && i < proxies.length; i++) next();
+        });
+    }
+
     async getWorkingProxy(account) {
+        // Overwrite: if accountProxies has mapping, use it
+        if (this.accountProxies.has(account)) {
+            return this.accountProxies.get(account);
+        }
+        // fallback: original logic
         if (this.proxies.length === 0) {
             await this.loadProxies();
         }
-
-        // Try existing proxy first
         if (this.accountProxies.has(account)) {
             const currentProxy = this.accountProxies.get(account);
             if (await this.testProxy(currentProxy)) {
@@ -154,12 +189,9 @@ _______  ____\_ |__ _____________|__|____    ____
                 this.markProxyDead(currentProxy);
             }
         }
-
-        // Find new working proxy
         for (let i = 0; i < this.proxies.length; i++) {
             const proxy = this.proxies[i];
             if (this.deadProxies.has(proxy)) continue;
-            
             if (await this.testProxy(proxy)) {
                 this.accountProxies.set(account, proxy);
                 return proxy;
@@ -167,7 +199,6 @@ _______  ____\_ |__ _____________|__|____    ____
                 this.markProxyDead(proxy);
             }
         }
-
         return null;
     }
 
@@ -230,20 +261,18 @@ _______  ____\_ |__ _____________|__|____    ____
 
     async makeRequest(url, options = {}) {
         const { proxy, retries = 3, ...axiosOptions } = options;
-        
         for (let attempt = 0; attempt < retries; attempt++) {
             try {
                 const config = {
                     timeout: 60000,
                     ...axiosOptions
                 };
-
                 if (proxy) {
                     const agent = this.getProxyAgent(proxy);
                     config.httpsAgent = agent;
                     config.httpAgent = agent;
                 }
-
+                // If proxy is null, do not set agent (direct)
                 const response = await axios(url, config);
                 return response.data;
             } catch (error) {
@@ -422,8 +451,14 @@ _______  ____\_ |__ _____________|__|____    ____
                 return;
             }
 
+            // CLI flag for no-proxy
+            const noProxy = process.argv.includes('--no-proxy');
+            if (noProxy) {
+                this.log('\x1b[33m\x1b[1mRunning in NO PROXY mode. All requests direct.\x1b[0m');
+            }
+
             // Initial proxy load
-            await this.loadProxies();
+            if (!noProxy) await this.loadProxies();
 
             // Cari proxy aktif sebanyak jumlah token valid
             let validTokens = [];
@@ -435,21 +470,17 @@ _______  ____\_ |__ _____________|__|____    ____
             }
             let proxiesNeeded = validTokens.length;
             let workingProxies = [];
-            let tested = new Set();
-            for (let i = 0; i < this.proxies.length && workingProxies.length < proxiesNeeded; i++) {
-                const proxy = this.proxies[i];
-                if (this.deadProxies.has(proxy) || tested.has(proxy)) continue;
-                if (await this.testProxy(proxy)) {
-                    workingProxies.push(proxy);
-                } else {
-                    this.markProxyDead(proxy);
-                }
-                tested.add(proxy);
+            if (!noProxy) {
+                workingProxies = await this.parallelProxyCheck(this.proxies, proxiesNeeded, Math.min(20, os.cpus().length * 2));
             }
-            // Assign proxy ke setiap akun
+            // Assign proxy ke setiap akun, fallback ke direct jika kurang
             for (let i = 0; i < validTokens.length; i++) {
                 const { email } = validTokens[i];
-                this.accountProxies.set(email, workingProxies[i % workingProxies.length] || null);
+                if (noProxy || !workingProxies[i]) {
+                    this.accountProxies.set(email, null);
+                } else {
+                    this.accountProxies.set(email, workingProxies[i]);
+                }
             }
 
             const _0x1a2b = (str) => Buffer.from(str, 'base64').toString('utf-8');
